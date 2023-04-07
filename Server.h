@@ -4,6 +4,8 @@
 #include "Database.h"
 #include "Reply.h"
 #include "Request.h"
+#include "User.h"
+#include <nlohmann/json.hpp>
 
 class Server
 {
@@ -16,12 +18,25 @@ public:
 	int server_port = 10001;
 	std::string generate_token(int l);
 	void parse_request(Request req) {
-		bool is_user;
-		bool is_admin;
 		bool is_body_not_empty = !req.get_body().empty();
 		bool is_body_parceble;
+		try {
+			if (is_body_not_empty) {
+				auto j = nlohmann::json();
+				is_body_parceble = true;
+			}
+			else is_body_parceble = false;
+			
+		}
+		catch(int e){
+			is_body_parceble = false;
+		}
+
+
 		std::string path = req.get_path().first;
 		std::string token = req.get_path().second;
+		bool is_user;
+		bool is_admin;
 		switch (req.get_method()) {
 		case verb::options:
 			OPTIONS();
