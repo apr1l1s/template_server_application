@@ -4,7 +4,7 @@
 class ErrorHandler
 {
 public:
-	enum ErrorType {
+	enum StatusType {
 		ok = 200,
 		accepted = 202,
 		no_content = 204,
@@ -14,7 +14,7 @@ public:
 		internal_server_error = 500,
 	};
 	//Выводит в консоль статус ошибки и причину
-	static void show_error(ErrorType e, std::string text) {
+	static void show_error(StatusType e, std::string text) {
 		switch (e) {
 		case no_content:
 			std::cout << "204 No Content:\n" << text << "\n\n"; 

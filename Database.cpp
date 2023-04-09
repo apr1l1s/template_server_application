@@ -1,1 +1,3 @@
-#include "Database.h"
+#include "User.h"
+#include "Message.h"
+#include "Table.h"

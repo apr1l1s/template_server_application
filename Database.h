@@ -8,6 +8,9 @@ class Database
 public:
 	Table<User> users;
 	Table<Message> messages;
-	
-};
+	Database() {
+		User u("admin", "admin");
+		users.add(u);
+	}
+};	
 
