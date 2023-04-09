@@ -9,5 +9,7 @@ public:
 	std::string text;
 	std::string time; //"hh:mm:ss dd.MM.yyyy"
 	Message(size_t _sender_id, size_t _recepient_id, std::string text, std::string time) {}
+	std::string time; //"hh.mm.ss dd.MM.yy"
+	Message(size_t _sender_id, size_t _recepient_id, std::string text, std::string time) {}
 };
 
