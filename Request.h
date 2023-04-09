@@ -7,6 +7,7 @@
 #include <iostream>
 #include <boost/core/detail/string_view.hpp>
 #include <boost/beast/core/string_type.hpp>
+#include <map>
 
 
 using boost::beast::http::parser;
@@ -19,10 +20,15 @@ class Request
     verb method;
     std::string body;
     std::string method_string;
+    std::map<std::string,std::string> params;
 public:
     std::string get_body() {
         if (body.empty()) return "";
         else return body;
+    }
+
+    void get_params() {
+       
     }
     std::pair<std::string, std::string> get_path() {
         boost::string_view s = method_string;
