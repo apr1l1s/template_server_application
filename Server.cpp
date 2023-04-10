@@ -48,13 +48,16 @@ Reply Server::OPTIONS()
 {
     return Reply(ErrorHandler::ok);
 }
-
+//Получить сообщение
+//Получить юзеров
 Reply Server::GET(Request req)
 {
     auto path = req.get_path().first;
     auto token = req.get_path().second;
     if (path.find("/msg") != -1) {
+        std::cout << "User trying to get message with token: " << token << "\n";
         size_t id = active_users_list[token];
+        std::cout << "User trying to get message with id: " << id << "\n";
         auto data = base.messages.getlist();
         nlohmann::json list;
         nlohmann::json item;
@@ -62,13 +65,13 @@ Reply Server::GET(Request req)
         for (auto it = data.begin(); it != data.end(); ++it) {
             if (it->second.recepient_id == id || it->second.sender_id == id) {
                 item["message_id"] = it->first;
-                item["sender_id"] = it->second.recepient_id;
-                item["recepient_id"] = it->second.sender_id;
+                item["sender_id"] = it->second.sender_id;
+                item["recepient_id"] = it->second.recepient_id;
                 item["text"] = it->second.text;
                 list["list"] += item;
-            }
+            } 
         }
-        std::cout << "Transfering items: " << list.size() << "\n";
+        std::cout << "Transfering items: " << list.size() << "\n\n";
         Reply rep(ErrorHandler::ok, list.dump());
         return rep;
     }
@@ -84,62 +87,81 @@ Reply Server::POST(Request req,bool is_admin, bool is_user)
     auto body =nlohmann::json::parse( req.get_body());
     auto path = req.get_path().first;
     auto token = req.get_path().second;
+
+    //Вход всегда без токена
+    //Если айди полученный по токену это -1, то нет пользователя
+    //Если айди 1, то это админ и генерируется новый админский токен
+    //Если 2 и больше, то гененируется юзерский токен
     if (path.find("/login")!= -1) {
-
         auto data = base.users.getlist();
-        size_t id = -1;
-
         bool is_json_user = !(body["login"].is_null() || body["pass"].is_null());
-
-        for (auto it = data.begin(); it != data.end(); ++it) {
-            if (it->second.login == body["login"].get<std::string>() && it->second.pass == body["pass"].get<std::string>()) {
-                id = it->first;
+        //Если в теле json пользователя, то дальше
+        if (is_json_user) {
+            User u(body["login"].get<std::string>(), body["pass"].get<std::string>());
+            size_t id = base.find(u);
+            auto new_token = generate_token(15);
+            switch (id) {
+            case -1:
+                std::cout << "Not found user with this data\n\n";
+                return Reply(ErrorHandler::not_found);
+                break;
+            case 1:
+                std::cout << "New admin token is: " << new_token << "\n";
+                active_admin_token = new_token;
+                std::cout << "Active_Users: " << active_users_list.size() << "\n";
+                std::cout << "Admin_Token: " << active_admin_token << "\n\n";
+                break;
+            default:
+                std::cout << "New user token is: " << new_token << "\n";
+                active_users_list.insert(std::pair<std::string, size_t>(new_token, id));
+                std::cout << "Active_Users: " << active_users_list.size() << "\n";
+                std::cout << "Admin_Token: " << active_admin_token << "\n\n";
+                break;
             }
-        }
-        auto new_token = generate_token(15);
-        switch (id) {
-        case -1:
-            //Нет в бд
-            break;
-        case 1:
-            active_admin_token = new_token;
-        default:
-            active_users_list.insert(std::pair<std::string, size_t>(new_token, id));
-        }
-
-        nlohmann::json j;
-        j["token"] = new_token;
-        ErrorHandler::show_error(ErrorHandler::ok,"Active token is now: " + new_token);
-        Reply rep(ErrorHandler::ok, j.dump());
-        return rep;
-    }
-    if (path.find("/regin") != -1) {
-        auto data = base.users.getlist();
-        std::cout << "Admin trying to add new user\n";
-        nlohmann::json item = nlohmann::json::parse(req.get_body());
-        bool is_body_user = !item["login"].empty() && !item["pass"].empty();
-        if (!is_body_user) {
-            std::cout << "Request does not contains item\n";
-            Reply rep(ErrorHandler::bad_request);
+            nlohmann::json j;
+            j["token"] = new_token;
+            Reply rep(ErrorHandler::ok, j.dump());
             return rep;
+        }
+    }
+    
+    //Регистрация это добавление пользователя с админским токеном
+    //Если всё успешно, то прога вернёт айди нового пользователя
+    if (path.find("/regin") != -1) {
+        std::cout << "Admin trying to add new user with token: " << token << "\n";
+        if (is_admin) {
+            auto data = base.users.getlist();
+            std::cout << "Admin trying to add new user\n";
+            nlohmann::json item = nlohmann::json::parse(req.get_body());
+            bool is_body_user = !item["login"].empty() && !item["pass"].empty();
+            if (!is_body_user) {
+                std::cout << "Request does not contains item\n";
+                Reply rep(ErrorHandler::bad_request);
+                return rep;
+            }
+            else {
+                std::string login = item["login"].get<std::string>();
+                std::string pass = item["pass"].get<std::string>();
+                User user(login, pass);
+                base.users.add(user);
+                size_t id = -1;
+                auto data = base.users.getlist();
+                for (auto it = data.begin(); it != data.end(); ++it) {
+                    id = it->first;
+                }
+                std::cout << "New data: " << login << ", " << pass << "\n";
+                nlohmann::json user_id;
+                user_id["user_id"] = id;
+
+                Reply rep(ErrorHandler::ok, user_id.dump());
+                return rep;
+            }
         }
         else {
-            std::string login = item["login"].get<std::string>();
-            std::string pass = item["pass"].get<std::string>();
-            User user(login,pass);
-            base.users.add(user);
-            size_t id = -1;
-            auto data = base.users.getlist();
-            for (auto it = data.begin(); it != data.end(); ++it) {
-                id = it->first;
-            }
-            std::cout << "New data: " << login << ", " << pass << "\n";
-            nlohmann::json user_id;
-            user_id["user_id"] = id;
-
-            Reply rep(ErrorHandler::ok, user_id.dump());
-            return rep;
+            std::cout << "Token is outdated\n\n";
+            return Reply(ErrorHandler::unauthorized);
         }
+        
     }   
     if (path.find("/msg/") != -1) {
         //Токен с которым отправлен запрос это отправитель
@@ -164,6 +186,8 @@ Reply Server::POST(Request req,bool is_admin, bool is_user)
         struct tm timeinfo;
         localtime_s(&timeinfo, &localtime);
         strftime(date, sizeof date, "%d.%m.%Y, %H:%M:%S", &timeinfo);
+        std::string d = date;
+        std::cout << sender_id << "\n" << recepient_id << "\n" << text << "\n" << date << "\n\n";
         Message msg(sender_id, recepient_id, text, date);
         base.messages.add(msg);
         Reply rep(ErrorHandler::accepted,"");
@@ -172,9 +196,12 @@ Reply Server::POST(Request req,bool is_admin, bool is_user)
     return Reply(ErrorHandler::internal_server_error);
 
 }
-//Редактировать сообщение
+
+//Редактировать сообщение может пользователь
+//
 Reply Server::PUT()
 {
+    
     return Reply(ErrorHandler::internal_server_error);
 }
 //Удаление сообщений

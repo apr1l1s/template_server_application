@@ -61,7 +61,7 @@ public:
 			break;
 		case verb::put:
 			//Отредактировать сообщение
-			if (is_body_parceble && is_admin) {
+			if (is_body_parceble && is_user) {
 				rep = PUT();
 			}
 			break;
