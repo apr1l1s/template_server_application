@@ -5,6 +5,7 @@
 #include "ErrorHandler.h"
 #include "Request.h"
 #include "Reply.h"
+
 void Server::work()
 {
     try {
@@ -12,12 +13,15 @@ void Server::work()
         boost::asio::ip::tcp::endpoint end_point_(boost::asio::ip::tcp::v4(), server_port);
         boost::asio::ip::tcp::acceptor acceptor_(io_service_, end_point_);
         boost::asio::ip::tcp::socket socket_(io_service_);
+
         std::cout << "Listening on\n\n";
         acceptor_.accept(socket_);
         std::cout << "Accept new request:\n";
+
         boost::asio::streambuf buf;
         boost::system::error_code ec;
         size_t max_socket_size = buf.max_size();
+
         boost::asio::read_until(socket_, buf, "\r\n\r\n", ec);
         ec.clear();
         std::string request_string = boost::beast::buffers_to_string(buf.data());
@@ -26,8 +30,8 @@ void Server::work()
         size_t bytes = boost::asio::write(socket_, boost::asio::buffer(res.to_string()), ec);
 
     }
-    catch (ErrorHandler::StatusType e) {
-        ErrorHandler::show_error(e,"");
+    catch (boost::beast::error e) {
+        
     }
 }
 std::string Server::generate_token(int l) {
@@ -43,7 +47,7 @@ std::string Server::generate_token(int l) {
     }
     return tmp_s;
 }
-
+//
 Reply Server::OPTIONS()
 {
     return Reply(ErrorHandler::ok);
@@ -70,6 +74,23 @@ Reply Server::GET(Request req)
                 item["text"] = it->second.text;
                 list["list"] += item;
             } 
+        }
+        std::cout << "Transfering items: " << list.size() << "\n\n";
+        Reply rep(ErrorHandler::ok, list.dump());
+        return rep;
+    }
+    if (path.find("/users") != -1) {
+        std::cout << "User trying to get all user with token: " << token << "\n";
+        size_t id = active_users_list[token];
+        auto data = base.users.getlist();
+        nlohmann::json list;
+        nlohmann::json item;
+
+        for (auto it = data.begin(); it != data.end(); ++it) {
+            item["user_id"] = it->first;
+            item["login"] = it->second.login;
+            item["pass"] = it->second.pass;
+            list["list"] += item;
         }
         std::cout << "Transfering items: " << list.size() << "\n\n";
         Reply rep(ErrorHandler::ok, list.dump());
@@ -123,15 +144,19 @@ Reply Server::POST(Request req,bool is_admin, bool is_user)
             Reply rep(ErrorHandler::ok, j.dump());
             return rep;
         }
+        else {
+            Reply rep(ErrorHandler::bad_request);
+            return rep;
+        }
     }
-    
+
     //Регистрация это добавление пользователя с админским токеном
     //Если всё успешно, то прога вернёт айди нового пользователя
     if (path.find("/regin") != -1) {
-        std::cout << "Admin trying to add new user with token: " << token << "\n";
+        std::cout << "User trying to add new user with token: " << token << "\n";
         if (is_admin) {
             auto data = base.users.getlist();
-            std::cout << "Admin trying to add new user\n";
+            std::cout << "Authentication as an administrator\n";
             nlohmann::json item = nlohmann::json::parse(req.get_body());
             bool is_body_user = !item["login"].empty() && !item["pass"].empty();
             if (!is_body_user) {
@@ -171,7 +196,6 @@ Reply Server::POST(Request req,bool is_admin, bool is_user)
         size_t pos = strlen("/msg/") + 1;
         size_t recepient_id = atoi(s.substr(pos, strlen(s.data()) - pos).data());
         size_t sender_id = active_users_list[token];
-        std::cout << s.substr(pos, strlen(s.data()) - pos).data() << "\n\n";
         if (sender_id == recepient_id) {
             std::cout << "User trying to send message to hifself\n\n";
             return Reply(ErrorHandler::bad_request);
@@ -199,9 +223,20 @@ Reply Server::POST(Request req,bool is_admin, bool is_user)
 
 //Редактировать сообщение может пользователь
 //
-Reply Server::PUT()
+Reply Server::PUT(Request req)
 {
-    
+    auto body = nlohmann::json::parse(req.get_body());
+    auto path = req.get_path().first;
+    auto token = req.get_path().second;
+    if (path.find("/users/")){
+        size_t pos = strlen("/users/") + 1;
+        size_t user_id = atoi(path.substr(pos, strlen(path.data()) - pos).data());
+        base.users.edit(user_id, NULL);
+        return Reply(ErrorHandler::ok);
+    }
+    if (path.find("/msg/")){
+        return Reply(ErrorHandler::ok);
+    }
     return Reply(ErrorHandler::internal_server_error);
 }
 //Удаление сообщений

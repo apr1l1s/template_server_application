@@ -27,21 +27,33 @@ public:
         else return body;
     }
 
-    void get_params() {
-       
-    }
     std::pair<std::string, std::string> get_path() {
         boost::string_view s = method_string;
-        size_t pos = s.find('/');
-        std::string token = "";
-        std::string path = s.substr(pos - 1, s.length() - pos).data();
-        if (s.find("?") != -1) {
-            boost::string_view base_token = "?token=Jzr0O1lK8BTSAP8";
-
-            token = s.substr(s.find('=') + 1, strlen("Jzr0O1lK8BTSAP8")).data();
-            path = path.substr(0, path.length() - strlen("?token=Jzr0O1lK8BTSAP8"));
+        auto answer = std::pair<std::string, std::string>("", "");
+        //Если строка не пустая
+        if (method_string.empty()) {
+            return answer;
         }
-        return std::pair<std::string, std::string>(path, token);
+        else {
+            size_t pos = s.find('/');
+            //Если в пути есть /
+            if (pos == -1) {
+                std::cout << "Empty path\n\n";
+                return answer;
+            }
+            else {
+                std::string token = "";
+                std::string path = s.substr(pos - 1, s.length() - pos).data();
+                //Если есть ?, то есть параметр
+                if (s.find("?") != -1) {
+                    // /msg?token=123456789012345
+                    boost::string_view base_token = "?token=123456789012345";
+                    token = s.substr(s.find('=') + 1, strlen("Jzr0O1lK8BTSAP8")).data();
+                    path = path.substr(0, path.length() - strlen("?token=Jzr0O1lK8BTSAP8"));
+                }
+                return std::pair<std::string, std::string>(path, token);
+            }
+        }
     }
     verb get_method() {
         return method;

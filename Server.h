@@ -19,6 +19,7 @@ public:
 	int server_port = 10001;
 	std::string generate_token(int l);
 	Reply parse_request(Request req) {
+
 		bool is_body_not_empty = !req.get_body().empty();
 		bool is_body_parceble;
 		try {
@@ -29,13 +30,15 @@ public:
 			else is_body_parceble = false;
 			
 		}
-		catch(int _){
+		catch(nlohmann::json::exception _){
+			std::cout << _.what() << "\n\n";
 			is_body_parceble = false;
 		}
 
 
 		std::string path = req.get_path().first;
 		std::string token = req.get_path().second;
+		std::cout << "path: " << path << "\ntoken: " << token << "\n\n";
 		bool is_user = !token.empty() && active_users_list.find(token)!=active_users_list.end();
 		bool is_admin = !token.empty() && !active_admin_token.empty() && token == active_admin_token;
 		Reply rep = Reply(ErrorHandler::internal_server_error);
@@ -62,7 +65,7 @@ public:
 		case verb::put:
 			//Отредактировать сообщение
 			if (is_body_parceble && is_user) {
-				rep = PUT();
+				rep = PUT(req);
 			}
 			break;
 		case verb::delete_:
@@ -79,11 +82,12 @@ public:
 		else {
 			return rep;
 		}
+		return rep;
 	}
 	Reply OPTIONS();
 	Reply GET(Request req);
 	Reply POST(Request req, bool is_admin, bool is_user);
-	Reply PUT();
+	Reply PUT(Request req);
 	Reply DELETE_(Request req);
 };
 
