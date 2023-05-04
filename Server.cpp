@@ -96,7 +96,7 @@ Reply Server::GET(Request req)
         Reply rep(ErrorHandler::ok, list.dump());
         return rep;
     }
-    return Reply(ErrorHandler::internal_server_error);
+    return Reply(ErrorHandler::bad_request);
 }
 
 //Регистрация админа
@@ -235,9 +235,12 @@ Reply Server::PUT(Request req)
         return Reply(ErrorHandler::ok);
     }
     if (path.find("/msg/")){
+        size_t pos = strlen("/msg/") + 1;
+        size_t msg_id = atoi(path.substr(pos, strlen(path.data()) - pos).data());
+        base.message.edit(msg_id, NULL);
         return Reply(ErrorHandler::ok);
     }
-    return Reply(ErrorHandler::internal_server_error);
+    return Reply(ErrorHandler::bad_request);
 }
 //Удаление сообщений
 //Удаление всех сообщений
